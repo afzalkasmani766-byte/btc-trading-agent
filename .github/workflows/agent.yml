@@ -1,0 +1,45 @@
+name: BTC Trading Agent
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # Every hour
+  workflow_dispatch:        # Manual trigger button on GitHub
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Restore trade log
+        run: |
+          if [ -f trade_log.json ]; then
+            cp trade_log.json agent/trade_log.json
+          fi
+
+      - name: Run BTC Agent
+        run: python agent/main.py
+
+      - name: Save trade log back to repo
+        run: |
+          cp agent/trade_log.json trade_log.json
+
+      - name: Commit updated trade log
+        run: |
+          git config user.name  "BTC Agent Bot"
+          git config user.email "bot@btcagent.com"
+          git add trade_log.json
+          git diff --staged --quiet || git commit -m "🤖 Trade log update $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push
